@@ -1,214 +1,320 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Assignment Countdown</title>
+  <title>Assignment Countdowns</title>
   <meta name="color-scheme" content="dark light" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg1:#0f1021; --bg2:#17182e; --accent:#7c5cff; --good:#00c896; --warn:#ffb020; --bad:#ff4d4f;
-      --glass: rgba(255,255,255,.10); --glass-brd: rgba(255,255,255,.25); --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 18px; --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --accent:#7c5cff; --good:#08c894; --warn:#ffb020; --bad:#ff4d4f;
+
+      /* light defaults (overridden by [data-theme]) */
+      --bg1:#f7f8fb; --bg2:#e8ebf3; --text:#0f1a2b; --muted:#3a4961; --panel: rgba(255,255,255,.85);
+      --card1: rgba(255,255,255,.95); --card2: rgba(255,255,255,.88); --link:#0b6bcb;
+      --glass: rgba(0,0,0,.03); --glass-brd: rgba(0,0,0,.10);
     }
+    @media (prefers-color-scheme: dark){
+      :root{ --bg1:#0f1021; --bg2:#17182e; --text:#e9ecf1; --muted:#b7c3d6; --panel: rgba(20,24,38,.75);
+        --card1: rgba(255,255,255,.10); --card2: rgba(255,255,255,.06); --link:#9ad1ff;
+        --glass: rgba(255,255,255,.08); --glass-brd: rgba(255,255,255,.22); }
+    }
+    [data-theme="light"]{
+      --bg1:#f7f8fb; --bg2:#e8ebf3; --text:#0f1a2b; --muted:#3a4961; --panel: rgba(255,255,255,.85);
+      --card1: rgba(255,255,255,.95); --card2: rgba(255,255,255,.88); --link:#0b6bcb;
+      --glass: rgba(0,0,0,.03); --glass-brd: rgba(0,0,0,.10);
+    }
+    [data-theme="dark"]{
+      --bg1:#0f1021; --bg2:#17182e; --text:#e9ecf1; --muted:#b7c3d6; --panel: rgba(20,24,38,.75);
+      --card1: rgba(255,255,255,.10); --card2: rgba(255,255,255,.06); --link:#9ad1ff;
+      --glass: rgba(255,255,255,.08); --glass-brd: rgba(255,255,255,.22);
+    }
+
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#e9ecf1;
-      background: radial-gradient(1200px 1200px at 20% -10%, #1a1446 0, transparent 60%),
-                  radial-gradient(1200px 1200px at 120% 30%, #08263a 0, transparent 60%),
+      margin:0; color:var(--text);
+      font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 1200px at 20% -10%, #1a144622 0, transparent 60%),
+                  radial-gradient(1200px 1200px at 120% 30%, #08263a22 0, transparent 60%),
                   linear-gradient(160deg,var(--bg1),var(--bg2));
       background-attachment: fixed;
     }
+
+    /* Wallpaper */
+    #fluid{ position:fixed; inset:0; z-index:-1; display:block;
+      filter:saturate(120%) contrast(105%) blur(.2px); }
+
     header{
-      padding:28px 18px 8px; display:flex; align-items:center; justify-content:space-between; gap:12px;
-      max-width:1200px; margin:0 auto;
+      max-width:1000px; margin:0 auto; padding:28px 16px 8px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px;
     }
-    h1{margin:0; font-weight:800; letter-spacing:.4px; font-size:clamp(22px,3vw,32px)}
-    .sub{opacity:.8; font-size:.95rem}
+    h1{margin:0; font-weight:900; font-size:clamp(22px,3vw,32px)}
+    .sub{opacity:.9; color:var(--muted); font-size:.95rem}
     .controls{display:flex; gap:10px; flex-wrap:wrap}
-    .muted{opacity:.7; font-size:.9rem}
     button{
-      appearance:none; border:1px solid var(--glass-brd); background:var(--glass); color:inherit;
-      padding:10px 14px; border-radius:12px; font-weight:600; cursor:pointer; backdrop-filter: blur(8px);
-      transition:.2s transform ease, .2s background-color ease, .2s border-color ease; box-shadow: var(--shadow);
+      appearance:none; border:1px solid var(--glass-brd); background:var(--panel); color:var(--text);
+      padding:10px 14px; border-radius:12px; font-weight:800; cursor:pointer; backdrop-filter: blur(10px);
+      transition:.2s transform ease, .2s background-color ease; box-shadow: var(--shadow);
     }
     button:hover{transform:translateY(-1px)}
     button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+    .muted{opacity:.75; font-size:.9rem; color:var(--muted)}
 
-    main{max-width:1200px; margin:8px auto 40px; padding:0 18px}
-    .grid{ display:grid; gap:16px; grid-template-columns: repeat(12, 1fr); grid-auto-rows: 1fr; }
-    .card{grid-column: span 12}
-    @media (min-width:800px){
-      .card:nth-child(1), .card:nth-child(2){grid-column: span 12}
-      .card{grid-column: span 6}
+    main{max-width:1000px; margin:8px auto 40px; padding:0 16px}
+    /* Single column list: exactly one row per deadline */
+    .list{ display:flex; flex-direction:column; gap:14px; }
+    .row{
+      border:1px solid var(--glass-brd);
+      background:linear-gradient(180deg,var(--card1),var(--card2));
+      border-radius:var(--radius); box-shadow: var(--shadow); overflow:hidden;
+      padding:16px;
     }
-    .card{
-      position:relative; border:1px solid var(--glass-brd); background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
-      padding:18px 18px 16px; border-radius:20px; backdrop-filter: blur(10px);
-      box-shadow: var(--shadow); display:flex; flex-direction:column; gap:6px; overflow:hidden;
+
+    .head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
+    .title{ font-weight:900; font-size:clamp(18px,2.2vw,24px) }
+    .badge{ padding:6px 10px; border-radius:999px; font-size:.72rem; font-weight:900; letter-spacing:.4px;
+            background:var(--glass); border:1px solid var(--glass-brd) }
+    .due{ margin-top:6px; color:var(--muted); font-size:.96rem }
+
+    .big{
+      margin-top:10px;
+      display:grid; grid-template-columns: repeat(8, minmax(0,1fr)); gap:10px; align-items:end;
     }
-    .badge{
-      position:absolute; top:10px; right:10px; padding:6px 10px; border-radius:999px;
-      font-size:.75rem; font-weight:700; letter-spacing:.4px; background:rgba(255,255,255,.14); border:1px solid var(--glass-brd)
-    }
-    .title{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; font-weight:800; font-size: clamp(18px, 2.2vw, 24px); }
-    .title .subject{opacity:.9}
-    .due{ opacity:.85; font-size:.95rem; }
-    .big{ margin-top:6px; display:grid; grid-template-columns: repeat(8, minmax(0,1fr)); gap:10px; align-items:end; }
     .unit{
-      grid-column: span 2; text-align:center; background: rgba(255,255,255,.08);
-      border:1px solid var(--glass-brd); border-radius:16px; padding:10px 8px;
+      grid-column: span 2; text-align:center; background: var(--glass);
+      border:1px solid var(--glass-brd); border-radius:14px; padding:10px 8px;
     }
-    @media (max-width:500px){ .unit{grid-column: span 4} }
-    .num{ font-weight:800; font-size: clamp(42px, 9.5vw, 120px); line-height: .9; letter-spacing:.5px; }
-    .lbl{opacity:.8; font-size:.85rem; font-weight:600; letter-spacing:.5px}
-    .progress{ margin-top:10px; height:8px; border-radius:999px; background: rgba(255,255,255,.10); overflow:hidden; border:1px solid var(--glass-brd) }
+    @media (max-width:560px){ .unit{grid-column: span 4} }
+
+    /* Non-squishy digits */
+    .num{
+      font-weight:900;
+      font-size: clamp(44px, 9.5vw, 110px);
+      line-height:.9; letter-spacing:.5px;
+      font-variant-numeric: tabular-nums lining-nums;
+      -moz-font-feature-settings: "tnum" 1, "lnum" 1;
+      -webkit-font-feature-settings: "tnum" 1, "lnum" 1;
+      font-feature-settings: "tnum" 1, "lnum" 1;
+      display:inline-block; text-align:center;
+    }
+    .num[data-unit="days"]{ min-width:4ch; }   /* supports up to 9999d without reflow */
+    .num[data-unit="hours"], .num[data-unit="mins"], .num[data-unit="secs"]{ min-width:2.4ch; }
+
+    .lbl{opacity:.8; font-size:.85rem; font-weight:800; letter-spacing:.5px}
+    .progress{ margin-top:10px; height:8px; border-radius:999px; background: var(--glass); overflow:hidden; border:1px solid var(--glass-brd) }
     .fill{height:100%; width:0%; background:linear-gradient(90deg, var(--accent), #23c0ff)}
-    .meta{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between}
-    .status{font-weight:700; letter-spacing:.3px}
+    .meta{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-top:8px}
+    .status{font-weight:900; letter-spacing:.3px}
     .status.ok{color:var(--good)} .status.warn{color:var(--warn)} .status.bad{color:var(--bad)}
-    .link{color:#9ad1ff; text-decoration:none; font-weight:600}
+    .link{color:var(--link); text-decoration:none; font-weight:800}
     .link:hover{text-decoration:underline}
-    .err{margin:16px 0 0; padding:10px 12px; border:1px solid #ff7d7f77; background:#380f12; color:#ffd9da; border-radius:12px; display:none}
-    footer{opacity:.7; font-size:.9rem; text-align:center; margin:24px 0}
+    .err{margin:14px 0 0; padding:10px 12px; border:1px solid #ff7d7f77; background:#380f12; color:#ffd9da; border-radius:12px; display:none}
+
+    footer{opacity:.85; font-size:.9rem; text-align:center; margin:20px 0; color:var(--muted)}
+    .pill{padding:.2rem .55rem; border-radius:999px; background:var(--glass); border:1px solid var(--glass-brd); font-weight:800}
   </style>
 </head>
 <body>
+  <canvas id="fluid" aria-hidden="true"></canvas>
+
   <header>
     <div>
-      <h1>Assignment Countdown</h1>
-      <div class="sub">Server-managed. Auto-sorted. Your timezone: <span id="tz"></span></div>
+      <h1>Assignment Countdowns</h1>
+      <div class="sub">Server JSON · One row per deadline · Timezone: <span id="tz"></span></div>
       <div class="muted" id="stamp"></div>
     </div>
     <div class="controls">
-      <button id="refreshBtn" title="Force refresh from server">🔄 Refresh</button>
+      <button id="themeBtn" title="Toggle auto/dark/light">🌓 Theme</button>
+      <button id="bgBtn" title="Toggle fluid wallpaper">🌊 Background</button>
+      <button id="refreshBtn" title="Force reload JSON">🔄 Refresh</button>
     </div>
   </header>
 
   <main>
-    <section id="grid" class="grid" aria-live="polite"></section>
+    <section id="list" class="list" aria-live="polite"></section>
     <div id="err" class="err" role="alert"></div>
-    <footer>To update deadlines, edit <code>deadlines.json</code> in the repo. Viewers can’t change it.</footer>
+    <footer>Edit <span class="pill">deadlines.json</span> in the repo (max 5). Viewers are read-only.</footer>
   </main>
 
   <script>
-    // ---------- Utilities ----------
-    const pad = (n) => String(Math.floor(Math.abs(n))).padStart(2,'0');
-    const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-    const bySoonest = (a,b) => +new Date(a.due) - +new Date(b.due);
+    /******** UTILITIES ********/
+    const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+    const pad=(n)=>String(Math.floor(Math.abs(n))).padStart(2,'0');
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time';
     document.getElementById('tz').textContent = tz;
 
-    // ---------- State ----------
-    const grid = document.getElementById('grid');
-    const errEl = document.getElementById('err');
-    const stamp = document.getElementById('stamp');
-    let items = [];
-    let etag = null;
+    // Robust local parser for "YYYY-MM-DDTHH:mm"
+    function parseLocal(str){
+      const s=String(str).trim().replace(' ','T');
+      const m=s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+      if(!m) return new Date(s);
+      const [_,Y,Mo,D,H,Mi]=m.map(Number);
+      return new Date(Y,Mo-1,D,H,Mi,0,0);
+    }
+    function humanize(ms){
+      const d=Math.floor(ms/86400000), h=Math.floor(ms%86400000/3600000), m=Math.floor(ms%3600000/60000);
+      if(d>0) return `${d}d ${h}h`; if(h>0) return `${h}h ${m}m`; return `${m}m`;
+    }
+    function escapeHTML(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+    function escapeURL(s){try{new URL(s);return s;}catch{return '#';}}
 
-    // ---------- Fetch server JSON ----------
-    async function fetchDeadlines(force = false){
+    /******** STATE ********/
+    const listEl=document.getElementById('list'), errEl=document.getElementById('err'), stamp=document.getElementById('stamp');
+    let items=[]; let etag=null;
+
+    /******** FETCH DEADLINES FROM SERVER JSON ********/
+    async function fetchDeadlines(force=false){
       try{
-        const headers = {'cache-control':'no-cache'};
-        if(etag && !force) headers['If-None-Match'] = etag; // browsers may ignore; harmless
-        const res = await fetch('deadlines.json', {cache:'no-cache', headers});
-        if(res.status === 304) return; // unchanged
+        const headers={'cache-control':'no-cache'};
+        if(etag && !force) headers['If-None-Match']=etag;
+        const res=await fetch('deadlines.json',{cache:'no-cache',headers});
+        if(res.status===304) return;
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        etag = res.headers.get('ETag') || etag;
-        const arr = await res.json();
-        items = sanitize(arr).slice(0,5).sort(bySoonest);
+        etag=res.headers.get('ETag')||etag;
+        const arr=await res.json();
+        items=sanitize(arr).slice(0,5).sort((a,b)=>+a.due-+b.due);
         render();
-        stamp.textContent = `Last loaded: ${new Date().toLocaleString()}`;
-        errEl.style.display = 'none';
+        stamp.textContent=`Last loaded: ${new Date().toLocaleString()}`;
+        errEl.style.display='none';
       }catch(e){
-        errEl.style.display = 'block';
-        errEl.textContent = `Couldn’t load deadlines.json (${e.message}). Your last loaded data will continue to display.`;
+        errEl.style.display='block';
+        errEl.textContent=`Couldn’t load deadlines.json (${e.message}). Showing last rendered state.`;
       }
     }
-
     function sanitize(arr){
       return (Array.isArray(arr)?arr:[]).filter(Boolean).map(o=>{
-        const title = (o.title??'').toString().trim() || 'Untitled';
-        const due = new Date(o.due);
-        const ok = !isNaN(+due);
+        const title=(o.title??'Untitled').toString().trim()||'Untitled';
+        const due=parseLocal(o.due);
         return {
           title,
-          due: ok ? due.toISOString().slice(0,16) : new Date(Date.now()+86400000).toISOString().slice(0,16),
-          link: o.link ? String(o.link) : undefined,
-          color: o.color ? String(o.color) : undefined
+          due: isNaN(+due) ? new Date(Date.now()+86400000) : due,
+          color: o.color ? String(o.color) : undefined,
+          link: o.link ? String(o.link) : undefined
         };
       });
     }
 
-    // ---------- Rendering ----------
+    /******** RENDER (ONE ROW PER DEADLINE) ********/
     function render(){
-      grid.innerHTML = '';
-      const now = Date.now();
+      listEl.innerHTML='';
+      const now=Date.now();
       for(const it of items){
-        const due = new Date(it.due);
-        const ms  = due - now;
-        const abs = Math.abs(ms);
-        const d = Math.floor(abs/86400000);
-        const h = Math.floor(abs%86400000/3600000);
-        const m = Math.floor(abs%3600000/60000);
-        const s = Math.floor(abs%60000/1000);
+        const due=+it.due;
+        const ms=due-now, abs=Math.abs(ms);
+        const d=Math.floor(abs/86400000), h=Math.floor(abs%86400000/3600000),
+              m=Math.floor(abs%3600000/60000), s=Math.floor(abs%60000/1000);
 
-        const soon = ms > 0 && ms < 48*3600000;
-        const statusClass = ms < 0 ? 'bad' : soon ? 'warn' : 'ok';
-        const statusText  = ms < 0 ? 'OVERDUE' : soon ? 'Due soon' : 'On track';
+        const soon = ms>0 && ms<48*3600000;
+        const statusClass = ms<0 ? 'bad' : (soon ? 'warn' : 'ok');
+        const statusText  = ms<0 ? 'OVERDUE' : (soon ? 'Due soon' : 'On track');
 
-        const windowSize = 7*24*3600000;
-        const prog = ms < 0 ? 100 : clamp(100 - ((due - now)/windowSize)*100, 0, 100);
+        const windowSize=7*24*3600000;
+        const prog= ms<0 ? 100 : clamp(100 - ((due-now)/windowSize)*100,0,100);
 
-        const fmt = new Intl.DateTimeFormat([], {
-          year:'numeric', month:'short', day:'2-digit',
-          hour:'2-digit', minute:'2-digit', hour12:false, timeZoneName:'short'
-        }).format(due);
+        const fmt=new Intl.DateTimeFormat([],{
+          year:'numeric',month:'short',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZoneName:'short'
+        }).format(new Date(due));
 
-        const card = document.createElement('article');
-        card.className = 'card';
-        card.style.setProperty('--accent', it.color || '#7c5cff');
-        if(ms<0) card.style.borderColor = 'rgba(255,77,79,.6)';
+        const row=document.createElement('article');
+        row.className='row';
+        row.style.setProperty('--accent', it.color||'#7c5cff');
+        if(ms<0) row.style.borderColor='rgba(255,77,79,.6)';
 
-        card.innerHTML = `
-          <span class="badge" style="border-color:${(it.color||'#7c5cff')}55">${statusText}</span>
-          <div class="title" style="color:${it.color||'#7c5cff'}">
-            <span>🧭</span><span class="subject">${escapeHTML(it.title)}</span>
+        row.innerHTML=`
+          <div class="head">
+            <div class="title" style="color:${it.color||'#7c5cff'}">🧭 ${escapeHTML(it.title)}</div>
+            <span class="badge">${statusText}</span>
           </div>
           <div class="due">Due: <strong>${fmt}</strong></div>
+
           <div class="big" role="group" aria-label="time remaining">
-            <div class="unit"><div class="num">${pad(d)}</div><div class="lbl">days</div></div>
-            <div class="unit"><div class="num">${pad(h)}</div><div class="lbl">hours</div></div>
-            <div class="unit"><div class="num">${pad(m)}</div><div class="lbl">mins</div></div>
-            <div class="unit"><div class="num">${pad(s)}</div><div class="lbl">secs</div></div>
+            <div class="unit">
+              <div class="num" data-unit="days">${pad(d)}</div>
+              <div class="lbl">days</div>
+            </div>
+            <div class="unit">
+              <div class="num" data-unit="hours">${pad(h)}</div>
+              <div class="lbl">hours</div>
+            </div>
+            <div class="unit">
+              <div class="num" data-unit="mins">${pad(m)}</div>
+              <div class="lbl">mins</div>
+            </div>
+            <div class="unit">
+              <div class="num" data-unit="secs">${pad(s)}</div>
+              <div class="lbl">secs</div>
+            </div>
           </div>
+
           <div class="progress" aria-hidden="true"><div class="fill" style="width:${prog}%"></div></div>
+
           <div class="meta">
             <div class="status ${statusClass}">${statusText}${ms<0 ? ' by ' : ' in '} ${humanize(abs)}</div>
             ${it.link ? `<a class="link" href="${escapeURL(it.link)}" target="_blank" rel="noopener">Open brief ↗</a>`:''}
           </div>
         `;
-        grid.appendChild(card);
+        listEl.appendChild(row);
       }
     }
 
-    function humanize(ms){
-      const d = Math.floor(ms/86400000), h = Math.floor(ms%86400000/3600000), m = Math.floor(ms%3600000/60000);
-      if(d>0) return `${d}d ${h}h`;
-      if(h>0) return `${h}h ${m}m`;
-      return `${m}m`;
-    }
-
-    function escapeHTML(s){ return s.replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-    function escapeURL(s){ try{ new URL(s); return s; }catch{ return '#'; } }
-
-    // ---------- Init + Live updates ----------
-    document.getElementById('refreshBtn').onclick = ()=> fetchDeadlines(true);
+    /******** TICK + CONTROLS ********/
+    document.getElementById('refreshBtn').onclick=()=>fetchDeadlines(true);
     fetchDeadlines(true);
-    setInterval(()=>render(), 1000);        // tick timers
-    setInterval(()=>fetchDeadlines(false), 30000); // poll server every 30s
+    setInterval(()=>render(),1000);          // live countdown tick
+    setInterval(()=>fetchDeadlines(false),30000); // poll for updates
+
+    /******** THEME TOGGLE ********/
+    const THEME_KEY='countdown-theme';
+    const root=document.documentElement;
+    function applyTheme(v){ root.setAttribute('data-theme',v); localStorage.setItem(THEME_KEY,v); }
+    (function initTheme(){ applyTheme(localStorage.getItem(THEME_KEY)||'auto'); })();
+    document.getElementById('themeBtn').onclick=()=>{
+      const cur=root.getAttribute('data-theme')||'auto';
+      applyTheme(cur==='auto'?'dark':cur==='dark'?'light':'auto');
+    };
+
+    /******** FLUID WALLPAPER ********/
+    const BG_KEY='countdown-bg';
+    const canvas=document.getElementById('fluid');
+    const ctx=canvas.getContext('2d',{alpha:true});
+    let raf=null, started=false, t0=0;
+    function resize(){ const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
+      const w=canvas.clientWidth=window.innerWidth, h=canvas.clientHeight=window.innerHeight;
+      canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);}
+    window.addEventListener('resize',resize,{passive:true}); resize();
+    function loop(ts){
+      if(!started) t0=ts; started=true; const t=(ts-t0)/1000;
+      const w=canvas.clientWidth, h=canvas.clientHeight; ctx.clearRect(0,0,w,h);
+      const grd=ctx.createLinearGradient(0,0,w,h); grd.addColorStop(0,'rgba(124,92,255,.15)'); grd.addColorStop(1,'rgba(35,192,255,.10)');
+      ctx.fillStyle=grd; ctx.fillRect(0,0,w,h); ctx.globalCompositeOperation='lighter';
+      const blobs=[
+        {r:Math.min(w,h)*0.45,sx:0.30,sy:0.20,sp:0.12,c:'rgba(124,92,255,.22)'},
+        {r:Math.min(w,h)*0.35,sx:0.70,sy:0.30,sp:0.17,c:'rgba(35,192,255,.20)'},
+        {r:Math.min(w,h)*0.40,sx:0.50,sy:0.80,sp:0.09,c:'rgba(0,200,150,.18)'}
+      ];
+      for(const b of blobs){
+        const x=w*(b.sx+0.12*Math.sin(t*b.sp*2+b.r));
+        const y=h*(b.sy+0.10*Math.cos(t*b.sp*1.6-b.r));
+        const rg=ctx.createRadialGradient(x,y,0,x,y,b.r); rg.addColorStop(0,b.c); rg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(x,y,b.r,0,Math.PI*2); ctx.fill();
+      }
+      ctx.globalCompositeOperation='source-over';
+      raf=requestAnimationFrame(loop);
+    }
+    function startBG(){ if(raf) cancelAnimationFrame(raf); canvas.style.display='block'; raf=requestAnimationFrame(loop); }
+    function stopBG(){ if(raf) cancelAnimationFrame(raf); raf=null; started=false; canvas.style.display='none'; }
+    const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function applyBG(v){ localStorage.setItem(BG_KEY,v); if(v==='off'||(v==='auto'&&prefersReduced)) stopBG(); else startBG(); }
+    (function initBG(){ applyBG(localStorage.getItem(BG_KEY)||'auto'); })();
+    document.getElementById('bgBtn').onclick=()=>{
+      const cur=localStorage.getItem(BG_KEY)||'auto';
+      applyBG(cur==='auto'?'on':cur==='on'?'off':'auto');
+    };
+
+    // Initial stamp
+    stamp.textContent = `Loaded: ${new Date().toLocaleString()}`;
   </script>
 </body>
 </html>

@@ -1,7 +1,6 @@
 [
-  { "title": "Seminar Slides",  "due": "2025-08-22T09:00", "color": "#7c5cff" },
-  { "title": "OS Lab Report",   "due": "2025-08-28T12:00", "color": "#23c0ff" },
-  { "title": "AI Homework 2",   "due": "2025-08-25T23:59", "color": "#00c896" },
-  { "title": "DBMS Project",    "due": "2025-09-05T17:00", "color": "#ffb020" },
-  { "title": "ML Assignment 3", "due": "2025-09-12T23:59", "color": "#ff4d4f", "link": "https://example.com/brief" }
+  { "title": "FML Assignment",  "due": "2025-08-23T00:00", "color": "#7c5cff" },
+  { "title": "MLL Assignment", "due": "2025-08-25T21:00", "color": "#ff6f61" },
+  { "title": "MLL Midterm Exam", "due": "2025-09-02T14:00", "color": "#28a745" },
+  { "title": "NLP Assignment", "due": "2025-08-31T23:59", "color": "#17a2b8" }
 ]
