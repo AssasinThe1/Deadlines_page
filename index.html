@@ -122,7 +122,7 @@
   <header>
     <div>
       <h1>Assignment Countdowns</h1>
-      <div class="sub">Server JSON · One row per deadline · Timezone: <span id="tz"></span></div>
+      <div class="sub">Timezone: <span id="tz"></span></div>
       <div class="muted" id="stamp"></div>
     </div>
     <div class="controls">
@@ -135,7 +135,6 @@
   <main>
     <section id="list" class="list" aria-live="polite"></section>
     <div id="err" class="err" role="alert"></div>
-    <footer>Edit <span class="pill">deadlines.json</span> in the repo (max 5). Viewers are read-only.</footer>
   </main>
 
   <script>
@@ -275,39 +274,94 @@
       applyTheme(cur==='auto'?'dark':cur==='dark'?'light':'auto');
     };
 
-    /******** FLUID WALLPAPER ********/
-    const BG_KEY='countdown-bg';
-    const canvas=document.getElementById('fluid');
-    const ctx=canvas.getContext('2d',{alpha:true});
-    let raf=null, started=false, t0=0;
-    function resize(){ const dpr=Math.max(1,Math.min(2,window.devicePixelRatio||1));
-      const w=canvas.clientWidth=window.innerWidth, h=canvas.clientHeight=window.innerHeight;
-      canvas.width=Math.floor(w*dpr); canvas.height=Math.floor(h*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);}
-    window.addEventListener('resize',resize,{passive:true}); resize();
-    function loop(ts){
-      if(!started) t0=ts; started=true; const t=(ts-t0)/1000;
-      const w=canvas.clientWidth, h=canvas.clientHeight; ctx.clearRect(0,0,w,h);
-      const grd=ctx.createLinearGradient(0,0,w,h); grd.addColorStop(0,'rgba(124,92,255,.15)'); grd.addColorStop(1,'rgba(35,192,255,.10)');
-      ctx.fillStyle=grd; ctx.fillRect(0,0,w,h); ctx.globalCompositeOperation='lighter';
-      const blobs=[
-        {r:Math.min(w,h)*0.45,sx:0.30,sy:0.20,sp:0.12,c:'rgba(124,92,255,.22)'},
-        {r:Math.min(w,h)*0.35,sx:0.70,sy:0.30,sp:0.17,c:'rgba(35,192,255,.20)'},
-        {r:Math.min(w,h)*0.40,sx:0.50,sy:0.80,sp:0.09,c:'rgba(0,200,150,.18)'}
-      ];
-      for(const b of blobs){
-        const x=w*(b.sx+0.12*Math.sin(t*b.sp*2+b.r));
-        const y=h*(b.sy+0.10*Math.cos(t*b.sp*1.6-b.r));
-        const rg=ctx.createRadialGradient(x,y,0,x,y,b.r); rg.addColorStop(0,b.c); rg.addColorStop(1,'rgba(0,0,0,0)');
-        ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(x,y,b.r,0,Math.PI*2); ctx.fill();
-      }
-      ctx.globalCompositeOperation='source-over';
-      raf=requestAnimationFrame(loop);
-    }
-    function startBG(){ if(raf) cancelAnimationFrame(raf); canvas.style.display='block'; raf=requestAnimationFrame(loop); }
-    function stopBG(){ if(raf) cancelAnimationFrame(raf); raf=null; started=false; canvas.style.display='none'; }
-    const prefersReduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function applyBG(v){ localStorage.setItem(BG_KEY,v); if(v==='off'||(v==='auto'&&prefersReduced)) stopBG(); else startBG(); }
-    (function initBG(){ applyBG(localStorage.getItem(BG_KEY)||'auto'); })();
+
+const BG_KEY = 'countdown-bg';
+const canvas = document.getElementById('fluid');
+const ctx = canvas.getContext('2d', { alpha: true });
+let raf = null, started = false, t0 = 0;
+
+function resize() {
+  const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  const w = canvas.clientWidth = window.innerWidth;
+  const h = canvas.clientHeight = window.innerHeight;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize, { passive: true });
+resize();
+
+function loop(ts) {
+  if (!started) t0 = ts;
+  started = true;
+  const t = (ts - t0) / 1000;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  // Background spacey gradient
+  const grd = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, Math.max(w,h)/1.5);
+  grd.addColorStop(0, 'rgba(5,5,25,0.6)');
+  grd.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.globalCompositeOperation = 'lighter';
+
+  // Trippy blobs
+  const blobs = [
+    { r: Math.min(w, h) * 0.35, sx: 0.2, sy: 0.3, sp: 0.25, c: 'rgba(0,255,255,0.15)' },
+    { r: Math.min(w, h) * 0.4, sx: 0.8, sy: 0.4, sp: 0.18, c: 'rgba(255,0,255,0.14)' },
+    { r: Math.min(w, h) * 0.3, sx: 0.5, sy: 0.8, sp: 0.22, c: 'rgba(124,92,255,0.15)' },
+    { r: Math.min(w, h) * 0.25, sx: 0.6, sy: 0.2, sp: 0.35, c: 'rgba(0,255,128,0.13)' },
+    { r: Math.min(w, h) * 0.2, sx: 0.4, sy: 0.6, sp: 0.4, c: 'rgba(255,255,0,0.12)' }
+  ];
+
+  for (const b of blobs) {
+    const x = w * (b.sx + 0.1 * Math.sin(t * b.sp * 2 + b.r) + 0.02 * Math.cos(t * 0.5));
+    const y = h * (b.sy + 0.1 * Math.cos(t * b.sp * 1.6 - b.r) + 0.03 * Math.sin(t * 0.8));
+    const distortion = 1 + 0.1 * Math.sin(t * 3 + b.r); // fluidy pulse
+    const radius = b.r * distortion;
+
+    const rg = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    rg.addColorStop(0, b.c);
+    rg.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.globalCompositeOperation = 'source-over';
+  raf = requestAnimationFrame(loop);
+}
+
+function startBG() {
+  if (raf) cancelAnimationFrame(raf);
+  canvas.style.display = 'block';
+  raf = requestAnimationFrame(loop);
+}
+function stopBG() {
+  if (raf) cancelAnimationFrame(raf);
+  raf = null;
+  started = false;
+  canvas.style.display = 'none';
+}
+
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function applyBG(v) {
+  localStorage.setItem(BG_KEY, v);
+  if (v === 'off' || (v === 'auto' && prefersReduced)) stopBG();
+  else startBG();
+}
+(function initBG() {
+  applyBG(localStorage.getItem(BG_KEY) || 'auto');
+})();
+document.getElementById('bgBtn').onclick = () => {
+  const cur = localStorage.getItem(BG_KEY) || 'auto';
+  applyBG(cur === 'auto' ? 'on' : cur === 'on' ? 'off' : 'auto');
+};
+
     document.getElementById('bgBtn').onclick=()=>{
       const cur=localStorage.getItem(BG_KEY)||'auto';
       applyBG(cur==='auto'?'on':cur==='on'?'off':'auto');
