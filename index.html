@@ -87,6 +87,25 @@
       border:1px solid var(--glass-brd); border-radius:14px; padding:10px 8px;
     }
     @media (max-width:560px){ .unit{grid-column: span 4} }
+    /* Make each countdown box center its contents */
+    .unit{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    }
+
+    /* Ensure digits stay centered and don’t clip */
+    .num{
+    text-align:center;
+    line-height:1;           /* avoids vertical crop */
+    white-space:nowrap;      /* prevents wrapping */
+    width:100%;
+    display:block;
+    }
+
+    /* Give days a touch more room so large values don’t overflow */
+    .num[data-unit="days"]{ min-width: 5ch; } /* was 4ch */
 
     /* Non-squishy digits */
     .num{
@@ -138,20 +157,17 @@
   </main>
 
   <script>
+    /******** CONFIG: Google Sheets CSV ********/
+    // Your sheet: Title | Due Date | Time | Color
+    // If your sheet tab uses a different gid, change the 0.
+    const FETCH_URL = 'https://docs.google.com/spreadsheets/d/1WbNg5zyw2kpUwPO2SZjI3LFG8pE6WjeqOY_VNeyXWXg/export?format=csv&gid=0';
+
     /******** UTILITIES ********/
     const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
     const pad=(n)=>String(Math.floor(Math.abs(n))).padStart(2,'0');
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time';
     document.getElementById('tz').textContent = tz;
 
-    // Robust local parser for "YYYY-MM-DDTHH:mm"
-    function parseLocal(str){
-      const s=String(str).trim().replace(' ','T');
-      const m=s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
-      if(!m) return new Date(s);
-      const [_,Y,Mo,D,H,Mi]=m.map(Number);
-      return new Date(Y,Mo-1,D,H,Mi,0,0);
-    }
     function humanize(ms){
       const d=Math.floor(ms/86400000), h=Math.floor(ms%86400000/3600000), m=Math.floor(ms%3600000/60000);
       if(d>0) return `${d}d ${h}h`; if(h>0) return `${h}h ${m}m`; return `${m}m`;
@@ -159,40 +175,112 @@
     function escapeHTML(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
     function escapeURL(s){try{new URL(s);return s;}catch{return '#';}}
 
+    // Flexible local date parser for: M/D/YYYY [HH:MM[:SS]] [AM|PM] OR ISO-like
+    function parseFlexible(s){
+      try{
+        s = String(s || '').trim();
+        if(!s) return new Date('');
+        // M/D/YYYY [HH:MM[:SS]] [AM|PM]
+        const us = s.match(/^\s*(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?\s*$/i);
+        if(us){
+          let [,M,D,Y,h='0',mi='0',se='0',ampm] = us;
+          h = parseInt(h,10);
+          if(ampm){
+            const up = ampm.toUpperCase();
+            if(up==='PM' && h<12) h += 12;
+            if(up==='AM' && h===12) h = 0;
+          }
+          return new Date(+Y, +M-1, +D, h, +mi, +(se||0), 0);
+        }
+        // YYYY-MM-DD[ T]HH:MM[:SS]
+        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+        if(iso){
+          const [,Y,Mo,D,H,Mi,Se='0'] = iso;
+          return new Date(+Y, +Mo-1, +D, +H, +Mi, +Se, 0);
+        }
+        // Fallback
+        return new Date(s);
+      }catch{ return new Date(''); }
+    }
+
+    // CSV parser (handles quotes/commas/newlines)
+    function parseCSV(text){
+      const rows=[]; let row=[], cell='', inQ=false;
+      for(let i=0;i<text.length;i++){
+        const c=text[i], n=text[i+1];
+        if(c==='\"'){
+          if(inQ && n==='\"'){ cell+='\"'; i++; }
+          else inQ=!inQ;
+        }else if(c===',' && !inQ){ row.push(cell); cell=''; }
+        else if((c==='\n' || c==='\r') && !inQ){
+          if(c==='\r' && n==='\n'){ i++; }
+          row.push(cell); rows.push(row); row=[]; cell='';
+        }else cell+=c;
+      }
+      if(cell.length>0 || row.length){ row.push(cell); rows.push(row); }
+      return rows;
+    }
+
     /******** STATE ********/
     const listEl=document.getElementById('list'), errEl=document.getElementById('err'), stamp=document.getElementById('stamp');
-    let items=[]; let etag=null;
+    let items=[]; const CACHE_KEY='deadlines-csv-cache-v1';
 
-    /******** FETCH DEADLINES FROM SERVER JSON ********/
+    /******** FETCH DEADLINES FROM GOOGLE SHEETS (CSV) ********/
     async function fetchDeadlines(force=false){
       try{
-        const headers={'cache-control':'no-cache'};
-        if(etag && !force) headers['If-None-Match']=etag;
-        const res=await fetch('deadlines.json',{cache:'no-cache',headers});
-        if(res.status===304) return;
+        const url = FETCH_URL + (FETCH_URL.includes('?') ? '&' : '?') + 't=' + Date.now(); // bust caches
+        const res = await fetch(url, { cache:'no-store', mode:'cors' });
         if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        etag=res.headers.get('ETag')||etag;
-        const arr=await res.json();
-        items=sanitize(arr).slice(0,5).sort((a,b)=>+a.due-+b.due);
+        const csv = await res.text();
+        localStorage.setItem(CACHE_KEY, csv);
+        items = csvToItems(csv);
         render();
         stamp.textContent=`Last loaded: ${new Date().toLocaleString()}`;
         errEl.style.display='none';
       }catch(e){
+        // fallback to cache
+        const cached = localStorage.getItem(CACHE_KEY);
+        if(cached){ items = csvToItems(cached); render(); }
         errEl.style.display='block';
-        errEl.textContent=`Couldn’t load deadlines.json (${e.message}). Showing last rendered state.`;
+        errEl.textContent=`Couldn’t load the Google Sheet (${e.message}). Showing last known data if available.`;
       }
     }
-    function sanitize(arr){
-      return (Array.isArray(arr)?arr:[]).filter(Boolean).map(o=>{
-        const title=(o.title??'Untitled').toString().trim()||'Untitled';
-        const due=parseLocal(o.due);
-        return {
-          title,
-          due: isNaN(+due) ? new Date(Date.now()+86400000) : due,
-          color: o.color ? String(o.color) : undefined,
-          link: o.link ? String(o.link) : undefined
-        };
-      });
+
+    function csvToItems(csv){
+      const rows = parseCSV(csv).filter(r=>r.some(x=>String(x).trim()!==''));
+      if(rows.length===0) return [];
+      const hdrs = rows[0].map(h=>String(h).trim().toLowerCase());
+      const idx = {
+        title: hdrs.indexOf('title'),
+        date:  hdrs.indexOf('due date'),
+        time:  hdrs.indexOf('time'),
+        color: hdrs.indexOf('color'),
+        link:  hdrs.indexOf('link'),
+      };
+      const out = [];
+      for(let i=1;i<rows.length;i++){
+        const r = rows[i];
+        const title = (idx.title>-1 ? r[idx.title] : r[0]) || 'Untitled';
+        const rawDate = idx.date>-1 ? r[idx.date] : '';
+        const rawTime = idx.time>-1 ? r[idx.time] : '';
+        const dueStr  = (String(rawDate).trim() + ' ' + String(rawTime).trim()).trim();
+        const due     = parseFlexible(dueStr);
+        if(isNaN(+due)) continue;
+        const color = idx.color>-1 ? r[idx.color] : '';
+        const link  = idx.link>-1  ? r[idx.link]  : '';
+        out.push({
+          title: String(title).trim(),
+          due,
+          color: color ? String(color).trim() : undefined,
+          link: link ? String(link).trim() : undefined
+        });
+      }
+      // at the end of csvToItems(csv)
+    const cutoff = Date.now() - 24*3600*1000; // now - 1 day
+    return out
+    .filter(it => +it.due >= cutoff)       // drop anything >1 day overdue
+    .sort((a,b)=>+a.due-+b.due)            // soonest first
+    .slice(0,5);                           // keep up to 5
     }
 
     /******** RENDER (ONE ROW PER DEADLINE) ********/
